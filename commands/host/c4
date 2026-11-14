@@ -58,7 +58,7 @@ if [ -z "$(docker ps -q --filter "name=^${CONTAINER}$")" ]; then
   # Run as the host user: Structurizr writes workspace.json and .structurizr/ next to the DSL.
   # DDEV labels let `ddev delete` remove the container with the project.
   docker run --name "$CONTAINER" --rm -d -p 127.0.0.1::8080 \
-    --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    --user "$CONTAINER_USER" -e HOME=/tmp \
     --label "com.ddev.site-name=${DDEV_SITENAME}" --label "com.ddev.approot=${DDEV_APPROOT}" \
     -v "$(source_dir "$NAME")":/usr/local/structurizr "$IMAGE" local >/dev/null
 fi

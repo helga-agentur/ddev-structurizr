@@ -10,7 +10,7 @@ set -euo pipefail
 has_format() { [[ ",$FORMATS," == *",$1,"* ]]; }
 
 # Run containers as the host user so exported files are not owned by root.
-DOCKER_OPTS=(--rm --user "$(id -u):$(id -g)" -e HOME=/tmp)
+DOCKER_OPTS=(--rm --user "$CONTAINER_USER" -e HOME=/tmp)
 
 structurizr_export() { # <workspace dir> <tmp dir> <format> <subdir>
   docker run "${DOCKER_OPTS[@]}" -v "$1":/usr/local/structurizr:ro -v "$2":/out "$IMAGE" \

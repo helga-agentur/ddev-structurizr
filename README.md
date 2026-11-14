@@ -107,7 +107,7 @@ ddev dotenv set .ddev/.env.structurizr --structurizr-layout=module
   Don't put hand-written files there.
 - Structurizr's local mode writes `workspace.json` and `.structurizr/` into the diagrams folder.
   `workspace.json` holds the manual layout; add both to `.gitignore` if you don't want them committed.
-- Containers run as your host user, so generated files are not owned by root.
+- Containers run as your host user, so generated files are not owned by root (rootless Docker is detected).
 
 ## Credits
 

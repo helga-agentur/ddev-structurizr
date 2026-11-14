@@ -29,6 +29,14 @@ PLANTUML_IMAGE="${STRUCTURIZR_PLANTUML_IMAGE:-plantuml/plantuml}"
 FORMATS="${STRUCTURIZR_EXPORT_FORMATS:-svg,mermaid}"
 PREFIX="structurizr_${DDEV_SITENAME}_"
 
+# Containers must write to the mounted folders as the host user, not the image's default user.
+# Rootless Docker maps container root to the host user; rootful Docker needs the host user's IDs.
+if docker info --format '{{.SecurityOptions}}' 2>/dev/null | grep -q rootless; then
+  CONTAINER_USER="0:0"
+else
+  CONTAINER_USER="$(id -u):$(id -g)"
+fi
+
 case "$LAYOUT" in
   module|root) ;;
   *) echo "STRUCTURIZR_LAYOUT must be 'module' or 'root', got '$LAYOUT'." >&2; exit 1 ;;
