@@ -7,13 +7,16 @@
 set -euo pipefail
 . "${DDEV_APPROOT}/.ddev/structurizr/lib.sh"
 
+# A missing browser is not an error (e.g. CI, SSH): xdg-open then exits non-zero.
 open_url() {
-  if [ "$(uname)" = "Darwin" ]; then open "$1"
-  elif command -v wslview >/dev/null 2>&1; then wslview "$1"
-  elif grep -qi microsoft /proc/version 2>/dev/null; then cmd.exe /c start "$1"
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1
-  else echo "Open $1 in your browser."
-  fi
+  {
+    if [ "$(uname)" = "Darwin" ]; then open "$1"
+    elif command -v wslview >/dev/null 2>&1; then wslview "$1"
+    elif grep -qi microsoft /proc/version 2>/dev/null; then cmd.exe /c start "$1"
+    elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
+    else false
+    fi
+  } >/dev/null 2>&1 || echo "Open $1 in your browser."
 }
 
 case "${1:-}" in
