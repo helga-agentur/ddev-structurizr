@@ -33,28 +33,65 @@ setup() {
   export CI=true
   ddev delete -Oy "${PROJNAME}" >/dev/null 2>&1 || true
   cd "${TESTDIR}"
-  run ddev config --project-name="${PROJNAME}" --project-tld=ddev.site
+  run ddev config --project-name="${PROJNAME}" --project-tld=ddev.site --docroot=web --project-type=php
   assert_success
   run ddev start -y
   assert_success
+
+  # Workspace in a module; exports go to the central folder (default root layout).
+  export SOURCE_DIR="web/modules/custom/my_module/architecture/diagrams"
+  export EXPORT_DIR="architecture/my_module"
+  mkdir -p "${SOURCE_DIR}"
+  cp "${DIR}/tests/testdata/workspace.dsl" "${SOURCE_DIR}/workspace.dsl"
 }
 
 health_checks() {
-  # Do something useful here that verifies the add-on
-
-  # You can check for specific information in headers:
-  # run curl -sfI https://${PROJNAME}.ddev.site
-  # assert_output --partial "HTTP/2 200"
-  # assert_output --partial "test_header"
-
-  # Or check if some command gives expected output:
-  DDEV_DEBUG=true run ddev launch
+  run ddev c4 --list
   assert_success
-  assert_output --partial "FULLURL https://${PROJNAME}.ddev.site"
+  assert_output "my_module"
+
+  run ddev c4-export
+  assert_success
+  assert_output --partial "my_module -> ${EXPORT_DIR}/"
+  assert_file_exist "${EXPORT_DIR}/README.md"
+  assert_file_exist "${EXPORT_DIR}/SystemContext.svg"
+  assert_file_exist "${EXPORT_DIR}/SystemContext.md"
+  assert_file_exist "${EXPORT_DIR}/Containers.svg"
+  assert_file_not_exist "architecture/.tmp-export-my_module"
+  run grep -c '```mermaid' "${EXPORT_DIR}/SystemContext.md"
+  assert_output "1"
+  run grep -F '![SystemContext](SystemContext.svg)' "${EXPORT_DIR}/README.md"
+  assert_success
+
+  run ddev c4-export missing_module
+  assert_failure
+  assert_output --partial "No workspace for module 'missing_module'"
+
+  # Editing mode: the only workspace is picked automatically.
+  run ddev c4
+  assert_success
+  assert_output --partial "my_module: http://localhost:"
+  url="$(echo "${output}" | grep -o 'http://localhost:[0-9]*' | head -1)"
+  run curl -fsS -o /dev/null "${url}"
+  assert_success
+
+  run ddev c4 --stop-all
+  assert_success
+  run docker ps -q --filter "name=^structurizr_${PROJNAME}_"
+  assert_output ""
+
+  # The containers carry DDEV labels, so stopping the project stops them as well.
+  run ddev c4 my_module
+  assert_success
+  run ddev stop
+  assert_success
+  run docker ps -q --filter "name=^structurizr_${PROJNAME}_"
+  assert_output ""
 }
 
 teardown() {
   set -eu -o pipefail
+  ddev c4 --stop-all >/dev/null 2>&1 || true
   ddev delete -Oy "${PROJNAME}" >/dev/null 2>&1
   # Persist TESTDIR if running inside GitHub Actions. Useful for uploading test result artifacts
   # See example at https://github.com/ddev/github-action-add-on-test#preserving-artifacts
@@ -70,8 +107,6 @@ teardown() {
   echo "# ddev add-on get ${DIR} with project ${PROJNAME} in $(pwd)" >&3
   run ddev add-on get "${DIR}"
   assert_success
-  run ddev restart -y
-  assert_success
   health_checks
 }
 
@@ -80,8 +115,6 @@ teardown() {
   set -eu -o pipefail
   echo "# ddev add-on get ${GITHUB_REPO} with project ${PROJNAME} in $(pwd)" >&3
   run ddev add-on get "${GITHUB_REPO}"
-  assert_success
-  run ddev restart -y
   assert_success
   health_checks
 }
