@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#ddev-generated
+## Description: Open the Structurizr workspace of a module in the browser (local editing mode)
+## Usage: c4 [module] [--stop] | c4 --list | c4 --stop-all
+## Example: "ddev c4 my_module" or "ddev c4 my_module --stop" or "ddev c4 --list"
+
+set -euo pipefail
+. "${DDEV_APPROOT}/.ddev/structurizr/lib.sh"
+
+open_url() {
+  if [ "$(uname)" = "Darwin" ]; then open "$1"
+  elif command -v wslview >/dev/null 2>&1; then wslview "$1"
+  elif grep -qi microsoft /proc/version 2>/dev/null; then cmd.exe /c start "$1"
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1
+  else echo "Open $1 in your browser."
+  fi
+}
+
+case "${1:-}" in
+  --list)
+    [ -n "$(workspaces)" ] || no_workspaces_hint
+    workspaces
+    exit 0 ;;
+  --stop-all)
+    ids="$(docker ps -q --filter "name=^${PREFIX}")"
+    [ -n "$ids" ] && docker stop $ids >/dev/null
+    echo "Stopped all Structurizr containers of ${DDEV_SITENAME}."
+    exit 0 ;;
+esac
+
+NAME="${1:-}"
+if [ -z "$NAME" ]; then
+  if [ -z "$(workspaces)" ]; then
+    no_workspaces_hint
+    exit 1
+  elif [ "$(workspaces | wc -l | tr -d ' ')" = "1" ]; then
+    NAME="$(workspaces)"
+  else
+    echo "Usage: ddev c4 <module>. Modules with a workspace:"
+    workspaces | sed 's/^/  /'
+    exit 1
+  fi
+fi
+
+CONTAINER="${PREFIX}${NAME}"
+
+if [ "${2:-}" = "--stop" ]; then
+  docker stop "$CONTAINER" >/dev/null 2>&1 && echo "Stopped $CONTAINER." || echo "$CONTAINER is not running."
+  exit 0
+fi
+
+if [ -z "$(docker ps -q --filter "name=^${CONTAINER}$")" ]; then
+  require_workspace "$NAME"
+  # Docker picks a free host port, so several workspaces can run in parallel.
+  # Run as the host user: Structurizr writes workspace.json and .structurizr/ next to the DSL.
+  # DDEV labels let `ddev delete` remove the container with the project.
+  docker run --name "$CONTAINER" --rm -d -p 127.0.0.1::8080 \
+    --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    --label "com.ddev.site-name=${DDEV_SITENAME}" --label "com.ddev.approot=${DDEV_APPROOT}" \
+    -v "$(source_dir "$NAME")":/usr/local/structurizr "$IMAGE" local >/dev/null
+fi
+
+PORT="$(docker port "$CONTAINER" 8080 | awk -F: 'NR == 1 { print $NF }')"
+URL="http://localhost:$PORT"
+
+# Structurizr needs a few seconds to boot; wait instead of opening a blank page.
+TIMEOUT=30
+ready() { curl -fs -o /dev/null "$URL"; }
+if ! ready; then
+  [ -t 1 ] || echo "Starting Structurizr for $NAME (up to ${TIMEOUT}s)..."
+  for ((left = TIMEOUT; left > 0; left--)); do
+    [ -t 1 ] && printf '\rStarting Structurizr for %s... %2ds ' "$NAME" "$left"
+    sleep 1
+    ready && break
+  done
+  [ -t 1 ] && printf '\r\033[K'
+  if ! ready; then
+    echo "Structurizr for $NAME did not respond within ${TIMEOUT}s. Check: docker logs $CONTAINER" >&2
+    exit 1
+  fi
+fi
+
+echo "$NAME: $URL"
+open_url "$URL"

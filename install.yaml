@@ -1,6 +1,8 @@
 name: structurizr
 
 project_files:
-  - docker-compose.structurizr.yaml
+  - commands/host/c4
+  - commands/host/c4-export
+  - structurizr/lib.sh
 
 ddev_version_constraint: '>= v1.24.10'
