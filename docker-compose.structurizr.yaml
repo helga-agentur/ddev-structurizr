@@ -1,8 +1,8 @@
 #ddev-generated
 services:
-  addon-template:
-    container_name: ddev-${DDEV_SITENAME}-addon-template
-    image: ${ADDON_TEMPLATE_DOCKER_IMAGE:-ddev/ddev-utilities:latest}
+  structurizr:
+    container_name: ddev-${DDEV_SITENAME}-structurizr
+    image: ${STRUCTURIZR_DOCKER_IMAGE:-ddev/ddev-utilities:latest}
     command: ["sh", "-c", "trap exit TERM; sleep infinity & wait"]
     restart: "no"
     # These labels ensure this service is discoverable by DDEV.
@@ -16,7 +16,7 @@ services:
     # Customize DDEV behavior for this service, see
     # https://docs.ddev.com/en/stable/users/extend/custom-docker-services/#x-ddev-extension
     # x-ddev:
-    #   # Shell for `ddev ssh -s addon-template`, the default is `sh`.
+    #   # Shell for `ddev ssh -s structurizr`, the default is `sh`.
     #   # The shell must exist in the image.
     #   ssh-shell: bash
     #   # Extra text for the INFO column of `ddev describe`,
